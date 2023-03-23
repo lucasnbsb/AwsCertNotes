@@ -74,3 +74,13 @@ _Connect to AWS services using a private network instead of the net_
   - takes a **month**
   - **PHYSICAL CABLE**
   - private network
+
+## Classic 3 tier architecture
+
+- public subnet
+  - Load Balancer
+- private subnet
+  - Auto Scaling Group
+- data subnet
+  - RDS
+  - Elasticache
