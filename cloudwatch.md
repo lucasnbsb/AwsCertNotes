@@ -1,0 +1,333 @@
+# CloudWatch - logging and monitoring
+
+### Monitoring
+
+- Preventing issues, optimizing performance, finding scaling patterns, optimizing cost
+- in aws:
+  - CloudWatch:
+    - colect and track metrics
+    - colect monitor and analyze log files
+    - emmit events when certain things happen
+    - set alarms to track metrics/events in real time
+  - X-Ray
+    - Troubleshoot app performance and errors
+    - distributed tracing of microservices
+  - CloudTrail
+    - Monitor aws api calls being made
+    - audit changes to aws resources by your users
+-
+
+### Metrics
+
+- you can create dashboards of metrics
+- EC2 metrics - every 5 minutos by default
+  - with detail monitoring it goes uo to 1 minute
+  - good for scaling ASGs faster
+  - free tier has 10 detailed metrics
+  - EC2 Memory usage must be pushed as custom from inside the instance
+  -
+- A **Dimension is an attriburte of a metric**
+  - instance id, environment, etc
+- A metric can have <= 30 dimentions
+- metrics are **Timestamped**
+
+### Custom Metrics
+
+- Use the api PutMetricData to push one data point
+- resolution
+  - std: 1 minute
+  - high res: 1/5/10/30 seconds
+  - you can timestamp metrics up to _two weeks in the past and 2 hours in the future_
+
+### Cloudwatch Logs
+
+- Log groups: arbitrary name, usually representing an application
+- Log stream: instances within application / log files / containers
+- Log Sources:
+  - SDK, CloudWatch Logs Agent, CloudWatch Unified Agent
+  - Elastic Beanstalk: collection of logs from application
+  - ECS: collection from containers
+  - AWS Lambda: collection from function logs
+  - VPC Flow Logs:VPC specific logs - API Gateway
+  - CloudTrail based on filter
+  - Route53: Log DNS queries
+- Can define log expiration policies (never expire, 30 days, etc..)
+- CloudWatch Logs can send logs to:
+  - Amazon S3 (exports)
+  - Kinesis Data Streams
+  - Kinesis Data Firehose
+  - AWS Lambda
+  - OpenSearch
+
+### Log metric filter
+
+- logs can use **filter expressions**
+  - count ocurrences of error codes, or find an ip
+- Metric filters can trigger CloudWatch alarms
+- Log insights: used to query logs and add queries to dashboards
+- _Filters don't filter retroactively_
+
+### Exporting logs
+
+- Log data can take up to 12 hours to become exportable
+- API: `CreateExportTask`
+- for mode real time stuff use Log Subscriptions
+
+### Log Subscriptions
+
+![clipboard.png](inkdrop://file:ecC8Pr6ks)
+
+### Log Aggregation
+
+![clipboard.png](inkdrop://file:IsfsyZbyD)
+
+### Logs Agent & Unified Agent
+
+- By default no logs go to CloudWatch
+- You need to run the CloudWatch agent to push logs (check the IAM permissions)
+- logs agent can be used on-premises too
+
+**Logs Agent**: Old version, sends just to CloudWatch logs
+**Unified Agent**:
+
+- Also collects (linux) system level metrics
+  - CPU
+  - Disk Metrics
+  - Ram
+  - Netstat
+  - Processes
+  - Swap Space
+- Out of the box for EC2 - you get disk, cpu and network at a high level, to get better metrics use the unified agent
+- sends logs to Cloudwatch logs
+- centralized configuration with SSM
+
+### Alarms
+
+- Alarms are used to trigger notifications for any metric
+- Various options (sampling, %, max, min, etc...)
+- Can be created over Logs Metrics filters
+- you can trigger it with `aws cloudwatch set-alarm-state` to test
+- Alarm States:
+  - OK
+  - INSUFFICIENT_DATA
+  - ALARM
+- Period:
+
+  - Length of time in seconds to evaluate the metric
+  - High resolution custom metrics: 10 sec, 30 sec or multiples of 60 sec
+
+- **Targets** : what alarms can do
+  - Stop,Terminate, Reboot, or Recover an EC2 Instance
+  - Trigger Auto Scaling Action
+  - Send notification to SNS (from which you can do pretty much anything)
+
+Composite alarms: monitoring the states of multiple other alarms
+
+- AND | OR conditions
+- reduce "alarm noise"
+
+### Instance Recovery
+
+- Status check:
+  - Instance status = check the VM
+  - System status = check the hardware
+- can trigger a recovery:
+- when recovered:
+  - Same Private, public and elastic IP
+  - same metadata
+  - same plcement group
+
+## Cloudwatch Synthetics Canary - browser orchestration
+
+- Configurable script to monitor your APIs, URLS, Websites
+- Reproduce a customer workflow to find issues
+- Written in Node.js or Python
+  - headless chrome browser (like puppeteer)
+- Integrates with CloudWatch Alarms
+- Can run once or on a schedule
+- Blueprints
+  - Heartbeet monitor
+  - Api canary: test basic read and write on rest APIs
+  - Broken Link Checker
+  - Visual Monitoring: compare screenshots with baseline screenshots
+  - _Canary Recorder_: record your actions and generete a script to do that
+  - GUI Workflow Builder: verifies that actions can be taken in the page
+
+## Cloudwatch EventBridge
+
+- evolution of Cloudwatch events: Same underlying API, will supplant Cloudwatch events eventually
+- Can extend into third-party apps
+- Default Event Bus
+  – generated by AWS services (CloudWatch Events)
+- Partner Event Bus
+  – receive events from SaaS service or applications (Zendesk, DataDog, Segment, Auth0...)
+- Custom Event Buses – for your own applications
+- Event buses can be accessed by other AWS accounts
+- You can archive events (all/filter) sent to an event bus (indefinitely or set period)
+- Ability to replay archived events
+
+### EventBridge - Schema Registry
+
+- The Bus can infer the schema from the events and generate code to consume the events
+- The schemas can be versioned
+
+### Resoruce-based policy
+
+- Manage permissions for specific Event Bus
+- You can allow/deny from other accounts or regions
+- Use case: aggregates all events from the whole org in your region
+
+## AWS X-Ray (2 questions)
+
+- Debugging in production ( without log statements )
+- Trace visualy what happens inside yout applications
+- Compatible with:
+  - lambda
+  - beanstalk
+  - ecs
+  - elb
+  - gateway
+  - ec2
+
+Tracing: following a request and seeing timing as well as what component received a follow up requests
+
+- you can trace
+  - all requests
+  - a % of requests
+
+Security:
+
+- IAM for authorization
+- KMS for encryption at rest
+
+#### Enabling X-ray
+
+- Code: Java, python, Go, Node.js, ,Net). Must import the X-ray SDK
+- Install the X-ray daemon or enable X-ray integration
+
+- the app sdk will then capture:
+  - calls to aws services
+  - http/https requests
+  - database calls
+  - queue calls
+- The daemon is a low level UDP interceptor.
+- Lambda already runs it
+- each app must have IAM rights to write to X-ray
+- The service map is computed from all the segments and traces
+
+#### X-Ray troubleshooting
+
+- Not working on EC2:
+  - EC2 has IAM roles?
+  - EC2 is running the daemon?
+- Enabling on Lambda
+  - Does it have the IAM execution role? (AWSX-RayWriteOnlyAccess)
+  - Is it imported in the code?
+  - is `Lambda X-Ray Active tracing` enabled?
+
+#### Instrumenting code with X-Ray
+
+- Measuring performance to diagnose errors
+- you do it by importing the X-Ray SDK
+- generaly requires registering as a middleware or interceptor
+
+### X-ray Concepts
+
+- Segments: each app/service will send segments
+- Subsegments: if you need more details
+- Trace: segments collected in an end-to-end trace
+- Sampling: time between sending segments
+- Annotations: KV pairs to index and filter traces
+- Metadata: KV pairs, not indexed, used for searching
+
+The daemon has a config to send trace cross accounts (everybody needs permission)
+
+#### Sampling Rules
+
+- to controll the amount of sampling happening
+- can be controlled without changes to the code
+- By default the SDK records the first request each second and 5% of any aditional requests
+  - the one per second is the _reservoir_
+  - the five percent is the _rate_
+  - you can configure both
+
+#### X-Ray Write API
+
+_The X-Ray daemon needs to have an IAM policy authorizing the correct API calls to function correctly_
+
+- **PutTraceSegments**: Uploads segment documents to AWS X-Ray
+- **PutTelemetryRecords**: Used by the AWS X-Ray daemon to upload telemetry.
+- **SegmentsReceivedCount**, SegmentsRejectedCounts, BackendConnectionErrors...
+- **GetSamplingRules**: Retrieve all sampling rules (to know what/when to send)
+- **GetSamplingTargets** & **GetSamplingStatisticSummaries**: advanced
+
+#### Read API
+
+- **GetServiceGraph**: main graph
+- **BatchGetTraces**: Retrieves a list of traces specified by ID. Each trace is a collection of segment documents that originates from a single request.
+- **GetTraceSummaries**: Retrieves IDs and annotations for traces available for a specified time frame using an optional filter.To get the full traces, pass the trace IDs to BatchGetTraces.
+- **GetTraceGraph**: Retrieves a service graph for one or more specific trace IDs.
+
+#### Xray with Beanstalk
+
+- the beanstalk platform includes the daemon
+- You can set the option in the console or turn in via xray-daemon.config with a property
+- app code must still be instrumented
+  - multicontainer still needs manual management
+
+#### Xray with ECS
+
+- ECS Cluster
+
+  - run a Xray container as a daemon on every instance
+  - app containers go into the instances with propper instrumentation
+
+- Sidecar pattern
+
+  - run a sidecar container with the x-ray daemon along with every app container
+
+- Fargate cluster
+  - As you can't set the underlying instance you are forced into the sidecar pattern
+
+## CloudTrail
+
+- _Governance, compliance and audit_
+- Enabled by default
+- History of events / api calls in your account
+- can put logs into CloudWatch logs or S3
+- a trail can be applied to all regions or a single region
+
+![clipboard.png](inkdrop://file:M5N81M5UZ)
+
+#### CloudTrail Events
+
+- Management events ( FREE )
+
+  - all operations performed on the AWS resources
+  - by default trails are configured for these
+  - can separate Read from write events
+
+- Data Events
+
+  - By default are **NOT** logged ( high volume )
+  - S3 object-level activity: can separade R/W
+  - Lambda activity ( invoke API )
+
+- CloudTrail Insights
+  - to detect unusual activity
+  - services hitting limits
+  - bursts of IAM actions
+  - inaccurate provisioning
+  - gaps in maintenance activity
+  - auto analyzes the normal management events to create a baseline and compares against it
+  - Continuously analyzes **Write** events for unusual patterns
+  - insight events can be sent to:
+    - CloudTrail console
+    - S3
+    - EventBridge events
+
+#### CloudTrail Events Retention
+
+_Default: 90 days_
+
+To keep for longer, send to S3. To analyze use Athena (query service over S3)
