@@ -1,4 +1,4 @@
-## Lambda
+# Lambda
 
 Virtual functions, limited by time (15 min executions) run on-demand with Auto-scaling
 Pros:
@@ -263,7 +263,7 @@ CloudWatch Logs:
 - By default, your Lambda function is launched outside your own VPC (in an AWS-owned VPC)
 - Therefore it cannot access resources in your VPC (RDS, ElastiCache, internal ELB...)
 - Define the VPC ID, subnets and SGs
-- Lambda will create an _ENI (Elastic Network Interface)_ in the subnets
+- You can configure lambdas to access private VPCs, fore each pair Lambda will create an _ENI (Elastic Network Interface)_ in the subnet's security group. _That's how you give lambda RDS access_
 - IAM: AWSLambdaVPCAccessExecutionRole
 
 **Internet Access**
