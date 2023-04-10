@@ -1,57 +1,68 @@
 # CI/CD on AWS - CodeBuild and CodeDeploy
 
-- Automating everything for security and speed
-- CodeCommit -> CodePipeline -> CodeBuild -> CodeDeploy -> CodeStart -> CodeArtifact -> CodeGuru
-- Deploy often, keep results visible
 - push code (repo) -> build and test (build server) -> deploy (deployment server)
 
 ### CodeCommit
 
-- github by aws basically
-- better for security, very private
-- SSH keys in the IAM or HTTP for password
-- Authorization by IAM
-- Encryption by KMS
-- Encryption in-flight through https or ssh
-- for cross account aceess use STS
-- minimal UI
+- **Authentication**
+  - _SSH keys / HTTPS_ with git credentials or aws cli credentials for IAM users
+- **Authorization**: _IAM policies_
+- **Encryption**:
+  - repos are encrypted at-rest with KMS
+  - in-flight with HTTPS && SSH
+- **Cross Account**
+  - Use a IAM Role in your account and STS (AssumeRole) for the cross-account
 
-### CodePipeline
+## CodePipeline
 
-- Visual workflow tool to orchestrate CICD, use any toll for each stage
-  - Source
-  - Build
-  - Test
-  - Deploy
+- Visual tool to orchestrate CICD, can integrate with any tool at any stage
+- Manual approval can be defined at any stage too
+- A pipeline is a set of stages, sequential or parallel actions that call the next one.
+- _resulting artifacts are stored into S3 buckets and go into the next phase, so the pipeline doesn't go back into CodeCommit_
 
-A pipeline is a set of stages, sequential or parallel actions that call the next one.
-_resulting artifacts are stored into S3 buckets and go into the next phase, so the pipeline doesn't go back into CodeCommit_
+**Troubleshooting**:
 
-**Troubleshooting**: through CloudWatch and EventBridge, events for failed pipelines or cancelled stages
+- Cloudwatch events (EventBridge) for _failed_ and _cancelled_ stages
+- Console for info on failed stages
+- IAM service role must have enough permissions
+- Cloudtrail for audits on the API calls
 
-- If a stage fails your pipeline stops, info in the console
-- If the pipeline can't perform an ection check the IAM Service Role is attached in the policy
-- Cloudtrail can be used to Audit API calls
+**Triggers**
 
-- Cloudwatch events is the recommended way to trigger the pipeline
-- you can visualy add action groups sequentially or in parallel
+- Events (defautl && recommended)
+- webhooks ( send a request to trigger )
+- polling (pulled instead of pushed)
 
 #### Manual Approval Stage
 
-- Set codepipeline to trigger a SNS message to an IAM user configured for manual action. Usualy done before the deploy stage
-- the user must have getPipeline and putApprovalResult permissions in IAM
+- _Set CodePipeline to trigger a SNS message to an IAM user, configure manual approval_
+- the user must have _getPipeline_ and _putApprovalResult_ permissions in IAM
 
-### CodeBuild
-
-- buildspec.yml or manually insert build instructions in the console
-- Output logs into S3 or CloudWatch logs
-- Cloudwatch
-  - metrics, events, alarms
+## CodeBuild
 
 ![clipboard.png](inkdrop://file:luZ0rLHjz)
 
-**The buildspec.yml file:**
-Must be put in the root directory of the project being built, you can use scripts but it's strongly advised to go with the buildspec.yml
+- **Build instructions**: _buildspec.yml_ or manually insert build instructions in the console
+- Output logs into S3 or CloudWatch logs
+- Cloudwatch
+  - metrics for statistics
+  - events for failed builds and notifications
+  - alarms for thresholds for failures ( number of errors, warnings, etc )
+- S3 for cache of reusable pieces in the build
+- Fully managed, scales on it's own
+- leverages docker for reproductible builds, use your own images or get prepackaged ones
+- charged per minute on the builds
+
+**Security**
+
+- KMS ecrypts build artifacts
+- IAM for permissions
+- VPC for network security
+- Cloudtrail for audits on the API calls
+
+### buildspec.yml - IN THE ROOT DIRECTORY OF THE PROJECT
+
+you can use scripts but it's strongly advised to go with the **buildspec.yml**
 
 - Env:
   - variables: plaintext
@@ -73,14 +84,14 @@ _Caching in S3 is optional but recommended_
 
 #### CodeBuild Locally
 
-- Install Docer
+- Install Docker
 - Install Codebuild Agent
 
 #### CodeBuild Inside VPC
 
 - By default launched outside the VPC
-  - VPC config:
-    - id
+  - you can specify a VPC config:
+    - VPC id
     - subnet id
     - SGs Id
   - Your build can then acess resources inside the VPC
@@ -98,32 +109,36 @@ _Caching in S3 is optional but recommended_
 
 - _Going from V1 to V2_
 - You can create a deploy group with:
+
   - EC2 instances
   - On-premise
 
-but everything must be running the **CodeDeploy** agent. Agents continuously pool the trigger for
-deploy targets. The app + appsec.yaml file is pulled from S3. EC2 instances run the deployment instructions
-in the appsec.yml
+- but everything must be running the **CodeDeploy** agent.
+- Agents continuously pool the trigger for deploy targets.
+- The app + appsec.yaml file is pulled from S3/github.
+- EC2 instances run the deployment instructions in the appsec.yml
 
 Components:
 
-- _Application_ – a unique name functions as a container (revision, deployment configuration, ...)
-- _ComputePlatform_ –EC2/On-Premises,AWSLambda,orAmazonECS
-- _Deployment Configuration_ – a set of deployment rules for success/failure
-- _EC2/On-premises_ – specify the minimum number of healthy instances for the deployment - AWS Lambda or Amazon ECS – specify how traffic is routed to your updated versions
-- _Deployment Group_ - group of tagged EC2 instances (allows to deploy gradually, or dev, test, prod...)
-- _Deployment Type_ – method used to deploy the application to a Deployment Group
-- _In-place Deployment_ – supports EC2/On-Premises
-- _Blue/Green Deployment_ – suppor ts EC2 instances only, AWS Lambda, and Amazon ECS
-- _IAM Instance Profile_ – give EC2 instances the permissions to access both S3 / GitHub
-- _Application Revision_ – application code + appspec.yml file
-- _Service Role_ – an IAM Role for CodeDeploy to perform operations on EC2 instances, ASGs, ELBs... • Target Revision – the most recent revision that you want to deploy to a Deployment Group
+- _Application_: a unique name functions as a container (revision, deployment configuration, ...)
+- _ComputePlatform_ EC2/On-Premises, AWSLambda, orAmazonECS
+- _Deployment Configuration_: a set of deployment rules for success/failure
+  - _EC2/On-premises_: specify the minimum number of healthy instances for the deployment
+  - _AWS Lambda or Amazon ECS_: specify how traffic is routed to your updated versions
+- **Deployment Group**: group of tagged EC2 instances (allows to deploy gradually, or dev, test, prod...)
+- _Deployment Type_: method used to deploy the application to a Deployment Group
+  - _In-place Deployment_: supports EC2/On-Premises
+  - _Blue/Green Deployment_: suppor ts EC2 instances only, AWS Lambda, and Amazon ECS
+- _IAM Instance Profile_: give EC2 instances the permissions to access both _S3 / GitHub_
+- _Application Revision_: application code + appspec.yml file
+- _Service Role_: an IAM Role for CodeDeploy to perform operations on EC2 instances, ASGs, ELBs...
+- _Target Revision_: the most recent revision that you want to deploy to a Deployment Group
 
-#### CodeDeploy - Appspec.yml
+#### Appspec.yml structure - PUT IT IN THE ROOT DIRECTORY OF THE APP
 
-- Files: just source/destination to copy from the source to the deploy servers
+- _Files_: just source/destination to copy from the source to the deploy servers
   - your CodeDeploy instances must have S3 access.
-- Hooks: Instructions to deploy new versions that execute in order:
+- _Hooks_: Instructions to deploy new versions that execute in order:
   - ApplicationStop
   - DownloadBundle
   - BeforeInstall
@@ -137,18 +152,30 @@ Components:
 
 #### Deploy Configurations
 
-- One at a time
+- One at a time: if one instance fails, deployment stops
 - Half at a time
-- All at once
+- All at once: causes downtime
 - Blue Green
   - must have an ASG
   - it launches another ASG
   - it swaps the ALB to the new ASG
 - Custom: set the min. healthy host%
 
-#### Failures:
+### Deploying to an ASG
 
-- EC2 instances stay in _Failed_ state
+- **In-Place**
+  - Updates existing EC2 instances
+  - newly created instances by the ASG also get updated
+- **Blue-green**
+  - New ASG is created (same settings)
+  - choose how long to keep the OLD onde
+  - Must be using an ALB
+
+#### Deployment groups
+
+- set of _tagged EC2 instances_
+- mix of ASG && tags to build deployment segments
+- _DEPLOYMENT_GROUP_NAME_ environment variables for customization scripts
 
 ### CodeDeploy Hands On
 
@@ -166,19 +193,25 @@ Components:
   - new ASG is created (settings are copied) and switch
   - choose how long to keep the old ASG
 
+#### Failures:
+
+- **EC2 instances stay in Failed state**
+- New deployments first to the _Failed_ instances
+- _To rollback, redeploy the old one or enable auto rollback for failures_
+
 #### Redeploys and Rollbacks options
 
-- Automatically: when a CloudWatch Alarm threshold is met
-- Manually
-- Disable rollbacks
+- **Rollback:** redeploy a previous version
+  - **Automatically**: when a CloudWatch Alarm threshold is met || deployment fails
+  - Manually
+- _Disable rollbacks_ can be set for a deployment
 
-If a rollback happens CodeDeploy redeploys the last good revision as a _new deployment_ (not a restore)
+If a rollback happens CodeDeploy redeploys the last good revision as a _new deployment_ (not a restored version)
 
 #### CodeDeploy Troubleshooting
 
 - "InvalidSignatureException - signature expired"
-- CodeDeploy needs acurate time references
-- if the date in the EC2 instance is not correct the signature date of the deployment requests may get rejected
+  - CodeDeploy needs acurate time references, if the date in the EC2 instance is not correct the signature date of the deployment requests may get rejected
 - Check the logs to undestand the deployment issues ( `/opt/codedeploy-agent/deployment-root/deployment`)
 
 ### AWS CodeStar
