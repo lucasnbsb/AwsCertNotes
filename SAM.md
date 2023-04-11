@@ -12,10 +12,16 @@
 
 - Transform Header indicates it’s SAM template:
   - Transform: 'AWS::Serverless-2016-10-31'
-- Write Code
-  - AWS::Serverless::Function
+- Supported resources
   - AWS::Serverless::Api
+  - AWS::Serverless::Application
+  - AWS::Serverless::Function
+  - AWS::Serverless::HttpApi
+  - AWS::Serverless::LayerVersion
   - AWS::Serverless::SimpleTable
+  - AWS::Serverless::StateMachine
+- the transform and resources headers are the only mandatory ones
+
 - Package & Deploy:
   - aws cloudformation package / sam package
   - aws cloudformation deploy / sam deploy
@@ -72,7 +78,8 @@ _SAM uses CodeDeploy natively to update Lamdas_
 - SAM requires the Transform and Resources sections
 - Commands to know:
   - sam build: fetch dependencies and create local deployment artifacts
-  - sam package: package and upload to Amazon S3, generate CF template - sam deploy: deploy to CloudFormation
+  - sam package: package and upload to Amazon S3, generate CF template
+  - sam deploy: deploy to CloudFormation
   - SAM Policy templates for easy IAM policy definition
 - SAM is integrated with CodeDeploy to do deploy to Lambda aliases
 
@@ -84,4 +91,4 @@ _SAM uses CodeDeploy natively to update Lamdas_
   - Can share publicly
   - Can share with specific AWS accounts
 - This prevents duplicate work, and just go straight to publishing
-- Application settings and behaviour can be customized using Environment variables
+-
