@@ -8,14 +8,16 @@
 
 - Standart and FIFO queues
 - A producer sends the message into the queue and a consumer **Polls** (pull model) the queue and consumers the messages
-- both producers and consumers can be pools
-- SQS is fully managed
-- Unlimited throuput
+- pools of producers and consumers
+- SQS is _fully managed_
+- _Unlimited throuput_
 - retention: 4 (default) to 14 days (max)
 - low latency (10ms)
-- message <= 256KB
+- _message <= 256KB_
 - can have duplicate messages (at least one delivery, ocasional delivery)
 - can have out of order messages (best effort ordering)
+
+#### 256kb for 4 to 14 days
 
 #### SQS - Producing messages
 
@@ -37,14 +39,14 @@
   - client-side if the client does it itself
 
 - Access control: IAM polcies on the SQS api
-- SQS Access policies ( similar to S3 policies )
-  - enable cross-account
+- _SQS Access policies_ ( similar to S3 policies )
+  - _enable cross-account_
   - enable other services to write to the queue
 
 #### Visibility timeout
 
 - when the message is polled by a consumer it becomes invisible to other consumers and the visibility timeout begins
-- by default, it's 30 secconds, but if the message is not processed during the timeout it is returned
+- by default, it's _30 secconds_, but if the message is not processed during the timeout it is returned
 - if a consummer is not able to do it in time there is an api: `ChangeMessageVisibility`
 
 #### Dead Letter Queue DLQ
@@ -57,9 +59,9 @@
 
 - let's you consume messages from the DLQ manually and then redrive them into the queue after changes
 
-#### Delay Queue
+### Delay Queue
 
-- you can delay up to 15 minutes
+- you can delay up to _15 minutes_
 - default is 0
 - there is a default queue level and a message delay that can be set on send
 
@@ -74,6 +76,7 @@
 #### SQS Extended Client - Larger messages
 
 - is a java library that uses a S3 bucket as a repo and sends the link
+- use it for messages >= 256kb
 
 #### SQS queue API
 
@@ -87,7 +90,7 @@
 
 #### FIFO queue
 
-- Limited throughput: 300 msg/s without batching 3000 with
+- Limited throughput: _300 msg/s without batching 3000 with_
 - Exactly-once send ( by removing duplicates )
 - Messages are processed in order by the consummer
 - You need to name it **`*.fifo`**
@@ -110,8 +113,7 @@
 
 #### How to publish:
 
-- create a topic -> push to topic
-
+- Create a topic -> push to topic
 - Direct Publish: (mobile platforms)
   - create a platform app
   - create a platform endpoint
@@ -119,8 +121,9 @@
 
 #### Security:
 
-- in-flight with HTTPS api
-- at rest with KMS keys
+- IFAR - in-flight at rest
+  - in-flight with HTTPS api
+  - at rest with KMS keys
 - Client side if you do it yourself
 - IAM policies for the API
 - SNS policies similar to S3
@@ -132,10 +135,10 @@
 - decoupled
 - push once
 - can add more sqs subs
-- cross region dellivery ( messages can be sent into SQS queues in other regions
-- Make sure the Queue Access Policy allows for SNS to write
+- cross region delivery ( messages can be sent into SQS queues in other regions )
+- Make sure the _Queue Access Policy allows for SNS to write_
 - Other applications: S3 event fan out
-- Firehose to S3: SNS has direct integration with fire hose so it's a good bridge
+- Firehose to S3: SNS has direct integration with firehose so it's a good bridge
 
 #### FIFO Topics
 
@@ -143,7 +146,7 @@ similar to SQS fifo
 
 - Ordering
 - Deduplication
-- SQS FIfo queues as subscribers
+- SQS Fifo queues as subscribers
 - limited throughput
 - enables Fifo fanout with Fifo SQS queues
 
@@ -153,16 +156,16 @@ with filter policies you can chose who receives messages by body
 
 ## Kinesis
 
-- Data streaming in real time
+- Data streaming in _real time_
 - Streams are broken down in Shards, you can scale the ammount of shards
-- retention 1 ~ 365 days
+- _retention 1 ~ 365 days_
 - ability to replay data in retention
 - data can't be deleted (immutability)
 - Producers send data into kinesis with records:
   - Record:
     - Partition key: gets hashed and sent to the same shard based on hash value
     - Data Block
-  - Rate: 1MB/sec/shard
+  - Rate: _1MB/sec/shard_
   - API: `PutRecord`
   - the partition key must be well distributed to balance out the shard usage
   - _ProvisionedThroughputExceded_: when you produce too much into a single shard
@@ -172,30 +175,30 @@ with filter policies you can chose who receives messages by body
 - Consumers receive the data
   - Record
     - Partition key
-    - sequence no.
-    - data blob
-  - Rate: 2 MB/sec/shard for all consumers OR
-    - 2 MB/sec/shard per consumer (enhanced fan out mode)
+    - Sequence no.
+    - Data blob
+  - _Rate: 2 MB/sec/shard_ for all consumers OR
+    - _2 MB/sec/shard per consumer (enhanced fan out mode)_
   - consumers can be
     - Lambdas
       - calls `GetBrach()`
       - supports classic & enhanced
       - can configure batch size and batch window
       - retry on error
-      - can process up to 10 batches per shard at the same time
+      - _can process up to 10 batches per shard at the same time _
     - Kinesis
       - Data Analytics
       - Data Firehose
     - Custom Consumer thorugh the SDK
       - Classic:
-        - calls `getRecords()` every shard outputs up to 2MB/sec for all consumers
+        - _calls `getRecords()` every shard outputs up to 2MB/sec for all consumers_
         - is a pulled method
         - low number of consumers
         - latency ~ 200ms
         - cheaper
         - returns up to 10MB or 10k records then throttles for 5 seconds
       - Enhanced Fan-out:
-        - calls `SubscribeToShard()` each consumer gets 2MB/sec per
+        - _calls `SubscribeToShard()` each consumer gets 2MB/sec per _
         - is a pushed method using HDB2
         - Multiple consuming apps for the same stream
         - latency ~70ms
@@ -214,10 +217,10 @@ with filter policies you can chose who receives messages by body
   - Provisioned:
     - you chose the no. of shards provisioned, scale mannualy or using API
     - 1MB/s/shard in
-    - 2MD/s/shard out
+    - 2MB/s/shard out
     - you pay _per shard per hour_
     - use it if you can plan the capacity events
-  - Od Demand Mode
+  - On Demand Mode
     - is managed, no need to provision
     - Default capacity 4MB/s in or 4000 records per second)
     - scales automatically based on observed _peak throughput_
@@ -228,7 +231,7 @@ with filter policies you can chose who receives messages by body
     - in-flight using HTTPS endpoint
     - at rest with KMS
     - client side by you
-  - VPC endpoints for access within VPC
+  - _VPC endpoints for access within VPC_
   - CloudTrail monitors all api calls
 - Operations
   - Shard Splitting
@@ -315,4 +318,4 @@ with filter policies you can chose who receives messages by body
 | ordering guaranteed only on FIFO | up to 100k topics              | Real-time big data analytics and ETL |
 | indivudual message delay         | no need to provision           | Ordering at the shard level          |
 | persistence for up to 14 days    | integrate with SQS for fan out | Data expires after X days            |
-|                                  | FIFO capable                   | Provisioned mode or on demand mode   |
+|                                  | fifo capable                   | provisioned mode or on demand mode   |
