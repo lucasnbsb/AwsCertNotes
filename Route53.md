@@ -27,17 +27,53 @@ _dig can perform DNS queries in the terminal_
 
 Record Types:
 
-- A: hostname = IPv4
-- AAAA: hostname = IPv6
-- CNAME: hostname = hostname (NO CNAME for the top node of a DNS namespace)
+- _A_: hostname = IPv4
+- _AAAA_: hostname = IPv6
+- _CNAME_: hostname = hostname (NO CNAME for the top node of a DNS namespace)
   - no CNAME for `amazon.com` but can for `www.amazon.com`
-- NS: Name Servers for the hosted zone
-- Alias: for AWS resources
+  - NS: Name Servers for the hosted zone
+- _Alias_: for AWS resources
+- _CAA_ (certification authority authorization).
+- _MX_ (mail exchange record).
+- _NAPTR_ (name authority pointer record).
+- _NS_ (name server record).
+- _PTR_ (pointer record).
+- _SOA_ (start of authority record).
+- _SPF_ (sender policy framework).
+- _SRV_ (service locator).
+- _TXT_ (text record).
+
+#### Aliases
+
+- points at the dns name of the service aliased
+- has TTL
+- Alias can be used for resolving apex/naked domains (example.com)
+- CNAME cannot
+- Use an alias where possible (CNAME queries are paid and alias is free)
+
+**Alias Targets**
+
+- ELB
+- Cloud front distros
+- API gateway
+- Elastic Beanstailk
+- S3
+- VPC endpoints
+- Global Acelerator
+- Route 53 records in the same zone
 
 ### How it works
 
 Recursively calls through the domains from most general to most specific
 TLD -> SLD -> Sub-domain
+
+the name servers might not know where the final destination is, but they know where there is a server
+that knows where the next subsection is.
+
+- When you register through R53 it becomes the authoritative DNS record for your domain
+- To bring a domain into R53 create a public hosted zone and change the DNS Name Servers from the provider to the R53 name servers
+  - But only if the Top-level Domain is supported
+-
 
 ### Hosted Zones
 
@@ -46,6 +82,11 @@ _A container for reccords and rules on how to route to subdomains_
 - Public Hosted Zones: Records on how to route on the public internet
 - Private Hosted Zones: Records on how to route traffic in one or more VPCs
   - lives inside the VPC
+  - can be associated with the VPC on another account
+    - accA owns hosted zone, accB owns VPC
+    - From accA create the association authorization
+    - from accB create the association
+    - delete the association authorization
 
 ### Record TTL
 
@@ -63,22 +104,17 @@ _A container for reccords and rules on how to route to subdomains_
 |                          | Always A / AAAA           |
 | Can health check         | can health check          |
 
-Alias Targets
-
-- ELB
-- Cloud front distros
-- API gateway
-- Elastic Beanstailk
-- S3
-- VPC endpoints
-- Global Acelerator
-- Route 53 records in the same zone
-
 ## Health Checks
 
 - not possible on simple routing policies
 - usually hits the LB
 - **ALL HEALTHCHECKERS LIVE ON THE PUBLIC INTERNET**
+
+**Can be pointed at:**
+
+- Endpoints (ip or domain name)
+- Status of other health checks
+- Status of a CloudWatch Alarm
 
 Types of Health Check:
 
@@ -100,6 +136,19 @@ Types of Health Check:
   - since the HC are outside the VPC they can't access private endpoints
   - You can create a CloudWatch Metric, associate with a CloudWatch Alarm and create a health check on the alarm.
 
+**Explicit types of Health checks**
+
+- _HTTP_ waits for a code > 200 < 400
+- _HTTPS_ waits for a code > 200 < 400
+- _HTTPSTRMATCH_: searches the **first 5120 bytes** of the response body for the string that you specify in **SearchString**.
+- _HTTPSSTRMATCH_: searches the **first 5120 bytes** of the response body for the string that you specify in **SearchString**.
+- _TCP_: Route 53 tries to establish a TCP connection.
+- _CLOUDWATCHMETRIC_: The health check is associated with a CloudWatch alarm.
+  - If the state of the alarm is OK, the health check is considered healthy.
+  - If the state is ALARM, the health check is considered unhealthy.
+  - If CloudWatch doesn’t have sufficient data to determine whether the state is OK or ALARM, the health check status depends on the setting for _InsufficientDataHealthStatus: Healthy, Unhealthy, or LastKnownStatus_.
+- _CALCULATED_: For health checks that monitor the status of other health checks, Route 53 adds up the number of health checks that Route 53 health checkers consider to be healthy and compares that number with the value of _HealthThreshold_.
+
 ## Routing Policies
 
 _Routing from a DNS point_
@@ -107,7 +156,7 @@ _Routing from a DNS point_
 #### Simple
 
 - Route to a single resource
-  - 1 name <-> N values, client picks at random
+  - 1 name = N values, client picks at random
   - **NO HEALTH CHECKS**
 
 ### Weighted
@@ -125,21 +174,17 @@ _Routing from a DNS point_
 ### Failover
 
 - 2 instances, Primary and secundary
-- primary needs to have a health check
-  - When it fails Route 53 maps the traffic to the seconday ( can be anywhere else )
+-     If primary is down (based on health checks), routes to secondary destination
 
 ### Geolocation
 
 - By Continent, Country or US state
 - Should create a default record (for no location match)
 - Localization, restricting distribution for compliance, Etc
-  -
 
-### Traffic Flow
+### Geoproximity
 
-- Visual editor for your rules
-- you can combine different routing policies
-- one polocy can send you to another
+- routes to the closest region within a geographic area
 
 ### Multi-Value
 
@@ -149,7 +194,8 @@ _Routing from a DNS point_
 - Client choses which one of the up to 8
 - the Health checked alternative to simple routing policies
 
-### 3rd party domains in R53
+### Traffic Flow
 
-- Create a hosted zone in the R53
-- update the NS records on the 3rd party to point to R53
+- Visual editor for your rules
+- you can combine different routing policies
+- one policy can send you to another
