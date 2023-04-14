@@ -28,6 +28,8 @@ _the ALB killer?_
   - Example: start an AWS Step Function workflow, post a message to SQS
   - Why? Add authentication, deploy publicly, rate control...
 
+![clipboard.png](inkdrop://file:iGupE99Jc)
+
 ### Endpoint types
 
 - **Edge-Optimized** (default): For global clients
@@ -37,23 +39,25 @@ _the ALB killer?_
   - For clients within the same region
   - Could manually combine with CloudFront (more control over the caching strategies and the distribution)
 - **Private**:
-  - Can only be accessed from your VPC using an interface VPC endpoint (ENI)
-  - Use a resource policy to define access
+  - Can only be accessed from your VPC using an **interface VPC endpoint** (ENI)
+  - Use a **resource policy** to define access
 
 ### API Gateway – Security
 
 - **User Authentication through**
-  - IAM Roles (useful for internal applications)
-  - Cognito (identity for external users – example mobile users)
-  - Custom Authorizer (your own logic)
-- **Custom Domain Name** HTTPS security through integration with AWS Certificate Manager (ACM)
-  - If using Edge-Optimized endpoint, then the certificate must be in us-east-1
-  - If using Regional endpoint, the certificate must be in the API Gateway region
-  - Must setup CNAME or A-alias record in Route 53
+  - _IAM Roles_ (useful for internal applications)
+  - _Cognito_ (identity for external users – example mobile users)
+  - _Custom Authorizer_ (your own logic) - Now Called _Lambda Authorizer_
+- **Custom Domain Name**
+  - HTTPS security through integration with AWS Certificate Manager (ACM)
+  - If using Edge-Optimized endpoint, then the certificate _must be in us-east-1_
+  - If using Regional endpoint, the certificate must be in the _API Gateway region_
+  - Must setup _CNAME or A-alias_ record in Route 53
 
 ### API Gateway – Deployment Stages
 
-- changes need to be made into a deployment to take effect
+- making changes don't mean they're effective
+- you need to make _Deployments_ for them to apply
 - Changes are deployed to “Stages” (as many as you want)
   - Use the naming you like for stages (dev, test, prod)
 - Each stage has its own configuration parameters
@@ -62,7 +66,7 @@ _the ALB killer?_
 #### API Gateway – Stage Variables
 
 - Stage variables are like environment variables for API Gateway
-- Use them to change often changing configuration values
+- Use them to change _often changing_ configuration values
 - They can be used in:
   - Lambda function ARN
   - HTTP Endpoint
@@ -211,13 +215,42 @@ _the ALB killer?_
 - CORS can be enabled through the console
 - Make sure the integration is not a proxy, otherwise you have to put the header manually in the function (because the function is the proxy)
 
+### API Gateway - Authorization
+
+- **Resource Based Policies**:
+  - Can authenticate
+    - Users from specific accounts
+    - Source Ip ranges or CIDR blocks
+    - VPCs or VPC endpoints in any account
+  - Available in all endpoint types
+- **Identity Based policies**
+  - leverages sigv4
+  - passes iam credentials into headers
+  - authentication and authorization
+  - for users/roles within your account
+- **Lambda Authorizer**
+  - Lambda validates the token in the header
+  - option to cache
+  - must return an IAM policy
+  - authentication and authorization
+  - good for 3rd party stuff, OAuth, SAML
+    ![clipboard.png](inkdrop://file:Lxy8trns-)
+- **Cognito User Pools**
+  - Users can sign in to a web or mobile app through cognito
+  - can integrate with social identity providers
+  - all members have a directory profile accessible through the SDK
+  - provides sign-up and sign in
+  - customizable Web ui
+  - supoprts MFA
+    ![clipboard.png](inkdrop://file:iO-SnZH-8)
+
 ### API Gateway – Security - IAM Permissions
 
 - **IAM:**
   - Great for users / roles already within your AWS account, + resource policy for cross account
   - Handle authentication + authorization
   - Leverages Signature v4
-- **Custom Authorizer:**
+- **Custom Authorizer / Lambda Authorizer: **
   - Great for 3rd party tokens
   - Very flexible in terms of what IAM policy is returned
   - Handle Authentication verification + Authorization in the Lambda function
@@ -266,3 +299,13 @@ _the ALB killer?_
 - Can apply forwarding and transformation rules at the API Gateway level
 
 ![clipboard.png](inkdrop://file:yRDulPkrM)
+
+### Logging and Monitoring
+
+- Logs through CloudWatch
+- API Gateway dashboard for visualization (there is a rest api for it too)
+- CloudTrail auditable for changes to the API
+- **Useful metrics to know**
+  - _IntegrationLatency_: time from gateway to endpoint and back, measures the responsiveness of the backend
+  - _Latency_: full roundtrip, measures the responsiveness of the API
+  - _CacheHitCount_ & _CacheMissCount_ optimize cache capacities
